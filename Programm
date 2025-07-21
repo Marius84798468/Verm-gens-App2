@@ -1,0 +1,162 @@
+pages/index.tsx
+// VermoegenApp.tsx
+import { useState } from "react";
+import { Home, LineChart, BarChart2, Bitcoin, Sun, Wallet } from "lucide-react";
+
+const assetTypes = [
+  "Immobilie",
+  "Aktie",
+  "ETF",
+  "Krypto",
+  "Solaranlage",
+  "Einkommen",
+];
+
+const assetIcons = {
+  Immobilie: <Home className="inline-block mr-2" />,
+  Aktie: <LineChart className="inline-block mr-2" />,
+  ETF: <BarChart2 className="inline-block mr-2" />,
+  Krypto: <Bitcoin className="inline-block mr-2" />,
+  Solaranlage: <Sun className="inline-block mr-2" />,
+  Einkommen: <Wallet className="inline-block mr-2" />,
+};
+
+export default function VermoegenApp() {
+  const [assets, setAssets] = useState([]);
+  const [selectedType, setSelectedType] = useState("Immobilie");
+  const [value, setValue] = useState(0);
+  const [growth, setGrowth] = useState(0);
+
+  const handleCSVImport = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      const lines = text.split("\n");
+      const importedAssets = [];
+
+      for (let line of lines) {
+        const [name, val, gr] = line.split(",");
+        if (!name || !val) continue;
+        importedAssets.push({
+          type: name.trim(),
+          value: Number(val.trim()),
+          growth: gr ? Number(gr.trim()) : null,
+        });
+      }
+      setAssets([...assets, ...importedAssets]);
+    };
+    reader.readAsText(file);
+  };
+
+  const addAsset = () => {
+    if (!selectedType) return;
+    setAssets([
+      ...assets,
+      {
+        type: selectedType,
+        value: Number(value),
+        growth: selectedType === "Einkommen" ? null : Number(growth),
+      },
+    ]);
+    setValue(0);
+    setGrowth(0);
+  };
+
+  const annualIncome = assets
+    .filter((a) => a.type === "Einkommen")
+    .reduce((acc, curr) => acc + curr.value * 12, 0);
+
+  const monthlyIncome = assets
+    .filter((a) => a.type === "Einkommen")
+    .reduce((acc, curr) => acc + curr.value, 0);
+
+  const projectedValue = assets
+    .filter((a) => a.growth !== null)
+    .reduce((acc, curr) => acc + curr.value * Math.pow(1 + curr.growth / 100, 1), 0);
+
+  return (
+    <div className="p-6 space-y-6">
+      <h1 className="text-2xl font-bold">Vermögensübersicht</h1>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <select
+          className="p-2 border rounded"
+          value={selectedType}
+          onChange={(e) => setSelectedType(e.target.value)}
+        >
+          {assetTypes.map((type) => (
+            <option key={type}>{type}</option>
+          ))}
+        </select>
+        <input
+          type="number"
+          placeholder={selectedType === "Einkommen" ? "Monatliches Einkommen" : "Wert in €"}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className="p-2 border rounded"
+        />
+        {selectedType !== "Einkommen" && (
+          <input
+            type="number"
+            placeholder="Wachstumsrate in % pro Jahr"
+            value={growth}
+            onChange={(e) => setGrowth(e.target.value)}
+            className="p-2 border rounded"
+          />
+        )}
+        <button
+          onClick={addAsset}
+          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+        >
+          Hinzufügen
+        </button>
+        {selectedType === "ETF" && (
+          <input
+            type="file"
+            accept=".csv"
+            onChange={handleCSVImport}
+            className="border p-2 rounded"
+          />
+        )}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3 mt-6">
+        <div className="border p-4 rounded shadow">
+          <p className="text-sm">Jährliches Einkommen</p>
+          <p className="text-xl font-bold">€ {annualIncome.toLocaleString()}</p>
+        </div>
+        <div className="border p-4 rounded shadow">
+          <p className="text-sm">Monatliches Einkommen</p>
+          <p className="text-xl font-bold">€ {monthlyIncome.toLocaleString()}</p>
+        </div>
+        <div className="border p-4 rounded shadow">
+          <p className="text-sm">Prognostizierter Wert nächstes Jahr</p>
+          <p className="text-xl font-bold">€ {projectedValue.toLocaleString()}</p>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <h2 className="text-lg font-semibold mb-2">Deine Assets</h2>
+        <ul className="space-y-2">
+          {assets.map((asset, index) => (
+            <li
+              key={index}
+              className="border p-2 rounded flex justify-between items-center"
+            >
+              <div>
+                {assetIcons[asset.type] || null}
+                <strong>{asset.type}</strong>: € {asset.value.toLocaleString()}
+              </div>
+              {asset.growth !== null && (
+                <span className="text-green-600 font-medium">+{asset.growth}% p.a.</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
